@@ -1,0 +1,58 @@
+django-admin startproject invoice_project
+cd invoice_project
+python manage.py startapp invoice_app
+from django.db import models
+
+class Invoice(models.Model):
+    date = models.DateField()
+    invoice_no = models.CharField(max_length=50)
+    customer_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.invoice_no
+
+class InvoiceDetail(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='details')
+    description = models.CharField(max_length=200)
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_no} - {self.description}"
+INSTALLED_APPS = [
+    # other apps...
+    'invoice_app',
+]
+from rest_framework import serializers
+from .models import Invoice, InvoiceDetail
+
+class InvoiceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceDetail
+        fields = '__all__'
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    details = InvoiceDetailSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+from rest_framework import viewsets
+from .models import Invoice
+from .serializers import InvoiceSerializer
+
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from invoice_app.views import InvoiceViewSet
+
+router = DefaultRouter()
+router.register('invoices', InvoiceViewSet)
+
+urlpatterns = [
+    path('', include(router.urls)),
+]
+python manage.py runserver
